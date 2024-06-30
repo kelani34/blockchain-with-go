@@ -10,11 +10,13 @@ import (
 )
 
 type Block struct {
+	timestamp    int64
 	nonce        int
 	previousHash [32]byte
-	timestamp    int64
 	transactions []*Transaction
 }
+
+const MINING_DIFFICULTY = 9
 
 func NewBlock(nonce int, previousHash [32]byte, transactions []*Transaction) *Block {
 	//b := new(Block)
@@ -40,8 +42,6 @@ func (b *Block) Print() {
 
 func (b *Block) Hash() [32]byte {
 	m, _ := json.Marshal(b)
-	fmt.Println(string(m))
-
 	return sha256.Sum256([]byte(m))
 }
 
@@ -85,6 +85,21 @@ func (bc *BlockChain) LastBlock() *Block {
 func (bc *BlockChain) AddTransaction(sender string, receiver string, value float32) {
 	tx := NewTransaction(sender, receiver, value)
 	bc.transactionPool = append(bc.transactionPool, tx)
+}
+
+func (bc *BlockChain) CopyTransaction() []*Transaction {
+	transactions := make([]*Transaction, len(bc.transactionPool))
+	for _, tx := range bc.transactionPool {
+		transactions = append(transactions, NewTransaction(tx.senderBlockChainAddress, tx.receiverBlockChainAddress, tx.value))
+	}
+	return transactions
+}
+
+func (bc *BlockChain) ValidProof(nonce int, previousHash [32]byte, transactions []*Transaction, difficulty int) bool {
+	zeros := strings.Repeat("0", difficulty)
+	guessBlock := Block{0, nonce, previousHash, transactions}
+	guessHashStr := fmt.Sprintf("%x", guessBlock.Hash())
+	return guessHashStr[:difficulty] == zeros
 }
 
 type Transaction struct {
