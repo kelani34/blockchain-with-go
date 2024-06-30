@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -9,12 +11,12 @@ import (
 
 type Block struct {
 	nonce        int
-	previousHash string
-	timestamp    int64 ``
+	previousHash [32]byte
+	timestamp    int64
 	transactions []string
 }
 
-func NewBlock(nonce int, previousHash string) *Block {
+func NewBlock(nonce int, previousHash [32]byte) *Block {
 	//b := new(Block)
 	//b.timestamp = time.Now().UnixNano()
 	//return b
@@ -29,8 +31,29 @@ func NewBlock(nonce int, previousHash string) *Block {
 func (b *Block) Print() {
 	fmt.Printf("timestamp: %d\n", b.timestamp)
 	fmt.Printf("nonce: %d\n", b.nonce)
-	fmt.Printf("timestamp: %s\n", b.previousHash)
+	fmt.Printf("previousHash: %x\n", b.previousHash)
 	fmt.Printf("transactions: %s\n", b.transactions)
+}
+
+func (b *Block) Hash() [32]byte {
+	m, _ := json.Marshal(b)
+	fmt.Println(string(m))
+
+	return sha256.Sum256([]byte(m))
+}
+
+func (b *Block) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Nonce        int      `json:"nonce"`
+		PreviousHash [32]byte `json:"previousHash"`
+		Timestamp    int64    `json:"timestamp"`
+		Transactions []string `json:"transactions"`
+	}{
+		Timestamp:    b.timestamp,
+		Nonce:        b.nonce,
+		PreviousHash: b.previousHash,
+		Transactions: b.transactions,
+	})
 }
 
 type BlockChain struct {
@@ -39,15 +62,20 @@ type BlockChain struct {
 }
 
 func NewBlockChain() *BlockChain {
+	b := &Block{}
 	bc := new(BlockChain)
-	bc.CreateBlock(0, "Init hash")
+	bc.CreateBlock(0, b.Hash())
 	return bc
 }
 
-func (bc *BlockChain) CreateBlock(nonce int, previousHash string) *Block {
+func (bc *BlockChain) CreateBlock(nonce int, previousHash [32]byte) *Block {
 	b := NewBlock(nonce, previousHash)
 	bc.chain = append(bc.chain, b)
 	return b
+}
+
+func (bc *BlockChain) LastBlock() *Block {
+	return bc.chain[len(bc.chain)-1]
 }
 
 func (bc *BlockChain) Print() {
@@ -63,13 +91,18 @@ func init() {
 }
 
 func main() {
-	//b := NewBlock(0, "init hash")
-	//b.Print()
+	//block := &Block{nonce: 1}
+	//
+	//fmt.Println(block.Hash())
 
 	blockChain := NewBlockChain()
 	blockChain.Print()
-	blockChain.CreateBlock(5, "hash 1")
+
+	previousHash := blockChain.LastBlock().Hash()
+	blockChain.CreateBlock(5, previousHash)
 	blockChain.Print()
-	blockChain.CreateBlock(4, "hash 2")
+
+	previousHash = blockChain.LastBlock().Hash()
+	blockChain.CreateBlock(4, previousHash)
 	blockChain.Print()
 }
